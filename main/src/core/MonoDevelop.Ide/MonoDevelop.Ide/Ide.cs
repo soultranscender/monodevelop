@@ -442,6 +442,13 @@ namespace MonoDevelop.Ide
 		{
 			if (args.Change == ExtensionChange.Add) {
 				try {
+#if DEBUG
+					string stackTrace = string.Empty;
+#if TRACE_ADDINS
+					stackTrace = Environment.StackTrace;
+#endif
+					LoggingService.LogDebug ("Startup handler: {0}: {1}", args.ExtensionNode.Id, stackTrace);
+#endif
 					if (typeof(CommandHandler).IsInstanceOfType (args.ExtensionObject))
 						typeof(CommandHandler).GetMethod ("Run", System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance, null, Type.EmptyTypes, null).Invoke (args.ExtensionObject, null);
 					else
