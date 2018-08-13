@@ -127,6 +127,7 @@ namespace MonoDevelop.Ide.Completion.Presentation
 
 		protected override void OnDestroyed ()
 		{
+			Runtime.CheckMainThread ();
 			base.OnDestroyed ();
 			if (layout != null) {
 				layout.Dispose ();
@@ -601,17 +602,23 @@ namespace MonoDevelop.Ide.Completion.Presentation
 
 		public void Close ()
 		{
-			Dismissed?.Invoke (this, EventArgs.Empty);
-			textView.LostAggregateFocus -= CloseOnTextviewLostFocus;
-			Instance = null;
-			textView.Properties ["RoslynCompletionPresenterSession.IsCompletionActive"] = false;
-			if (descriptionWindow != null) {
-				descriptionWindow.Destroy ();
-				descriptionWindow = null;
-			}
-			var manager = textView.GetSpaceReservationManager ("completion");
-			if (agent != null)
-				manager.RemoveAgent (agent);
+			// We suspect that https://github.com/mono/monodevelop/issues/5669 is caused 
+			// by Close being called from a background thread while the UI thread is handling ExposeEvent
+			// add logging in case if some codepath somehow calls this on background thread...
+			Runtime.CheckMainThread ();
+			Runtime.RunInMainThread (delegate {
+				Dismissed?.Invoke (this, EventArgs.Empty);
+				textView.LostAggregateFocus -= CloseOnTextviewLostFocus;
+				Instance = null;
+				textView.Properties ["RoslynCompletionPresenterSession.IsCompletionActive"] = false;
+				if (descriptionWindow != null) {
+					descriptionWindow.Destroy ();
+					descriptionWindow = null;
+				}
+				var manager = textView.GetSpaceReservationManager ("completion");
+				if (agent != null)
+					manager.RemoveAgent (agent);
+			});
 		}
 
 		CancellationTokenSource descriptionCts = new CancellationTokenSource ();
@@ -667,6 +674,7 @@ namespace MonoDevelop.Ide.Completion.Presentation
 
 		public new void Hide ()
 		{
+			Runtime.CheckMainThread ();
 			if (descriptionWindow != null) {
 				descriptionWindow.Destroy ();
 				descriptionWindow = null;
