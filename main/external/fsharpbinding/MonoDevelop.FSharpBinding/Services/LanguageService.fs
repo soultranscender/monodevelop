@@ -347,9 +347,10 @@ type LanguageService(dirtyNotify, _extraProjectInfo) as x =
             | None -> return Seq.empty
         }
 
-    member x.GetProjectOptionsFromProjectFile(project:DotNetProject, config:ConfigurationSelector, referencedAssemblies) =
-        let getReferencedProjects (project:DotNetProject) =
-            project.GetReferencedAssemblyProjects config
+    member x.GetProjectOptionsFromProjectFile(project:DotNetProject, config:ConfigurationSelector, referencedAssemblies: AssemblyReference seq) =
+        let getReferencedFSharpProjects (project:DotNetProject) =
+            referencedAssemblies
+            |> Seq.choose (fun r -> if r.IsProjectReference then (r.GetReferencedItem (project.ParentSolution) |> Option.tryCast<DotNetProject>) else None)
             |> Seq.filter (fun p -> p <> project && p.SupportedLanguages |> Array.contains "F#")
 
         let rec getOptions referencedProject =
@@ -358,7 +359,7 @@ type LanguageService(dirtyNotify, _extraProjectInfo) as x =
             | Some projOptions ->
                 let referencedProjectOptions =
                     referencedProject
-                    |> getReferencedProjects
+                    |> getReferencedFSharpProjects
                     |> Seq.fold (fun acc reference ->
                                      match getOptions reference with
                                      | Some outFile, Some opts  -> (outFile, opts) :: acc
